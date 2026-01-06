@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mood -> Activity & Spotify</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;margin:24px}
+    .controls{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+    .tracks{margin-top:16px}
+    .track{padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  </style>
+</head>
+<body>
+  <h1>Mood → Activity & Spotify</h1>
+
+  <div class="controls">
+    <label>
+      Mood:
+      <select id="mood-select">
+        <option value="happy">Happy</option>
+        <option value="energetic">Energetic</option>
+        <option value="calm">Calm</option>
+        <option value="sad">Sad</option>
+        <option value="stressed">Stressed</option>
+      </select>
+    </label>
+
+    <label>
+      Age group:
+      <select id="age-group-select">
+        <option value="18-25">18-25</option>
+        <option value="26-35">26-35</option>
+        <option value="36-50">36-50</option>
+        <option value="50+">50+</option>
+        <option value="13-17">13-17</option>
+      </select>
+    </label>
+
+    <button id="go">Suggest & Play</button>
+  </div>
+
+  <div id="suggestion">
+    <strong>Suggested activity:</strong>
+    <div id="activity" style="margin-top:8px;font-size:1.05em"></div>
+  </div>
+
+  <div id="status" style="margin-top:10px;color:#333;font-size:0.95em"></div>
+
+  <div class="tracks">
+    <h3>Tracks</h3>
+    <div id="tracks-list">No results yet.</div>
+  </div>
+
+  <audio id="player" controls style="width:100%;margin-top:12px"></audio>
+
+  <script src="mood.js"></script>
+</body>
+</html>

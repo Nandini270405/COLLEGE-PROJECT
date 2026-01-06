@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🎵</text></svg>" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Moodify</title>
+  <style>
+    :root { --primary:#3f51b5; --card:#fff; --bg:#f4f6ff; --muted:#666; }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;}
+    body{display:flex;flex-direction:column;background:var(--bg);color:#111}
+    header{background:var(--primary);color:white;padding:18px;text-align:center}
+    main{flex:1;padding:16px;max-width:640px;margin:0 auto;width:100%}
+    .subtitle{color:var(--muted);margin-bottom:12px}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .btn{background:var(--card);border-radius:12px;padding:18px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.08);cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,opacity .12s ease;touch-action:manipulation;user-select:none}
+    .btn:hover{transform:translateY(-4px);box-shadow:0 8px 18px rgba(0,0,0,0.12)}
+    .btn.pressed{transform:translateY(2px) scale(.985);box-shadow:0 1px 6px rgba(0,0,0,0.12);opacity:0.98}
+    .emoji{font-size:28px}
+    .label{margin-top:8px;font-weight:600}
+    .card{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.06);margin-top:12px}
+    /* Toast notification */
+    .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:rgba(0,0,0,0.85);color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.2);opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.2,.9,.2,1),opacity .22s ease;z-index:9999}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+    .toast.info{background:rgba(0,0,0,0.85)}
+    .toast.warn{background:linear-gradient(90deg,#ff8a50,#ff6a3a)}
+    .small{color:var(--muted);font-size:14px}
+    #saving{display:none;margin-top:12px}
+    footer{text-align:center;padding:12px;color:var(--muted);font-size:13px}
+    .full{grid-column:1 / -1}
+    button:disabled{opacity:0.6;cursor:not-allowed}
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:0">
+      <span style="font-size:28px">🎵</span>
+      <h1 style="margin:0;font-size:24px;font-weight:700">Moodify</h1>
+    </div>
+  </header>
+
+  <main>
+    <!-- Login Screen -->
+    <div id="login" style="display:block">
+      <div class="card" style="margin-top:24px">
+        <h2 style="margin-top:0;text-align:center">Welcome to Moodify</h2>
+        <p style="text-align:center;color:var(--muted)">Sign in to track your mood</p>
+      </div>
+
+      <div class="card">
+        <label style="display:block;margin-bottom:6px;font-weight:600">Username</label>
+        <input type="text" id="loginUsername" placeholder="john_doe" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;font-size:14px;box-sizing:border-box">
+      </div>
+
+      <div class="card">
+        <label style="display:block;margin-bottom:6px;font-weight:600">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;font-size:14px;box-sizing:border-box">
+      </div>
+
+      <div class="card">
+        <button id="loginBtn" style="width:100%;padding:10px;border-radius:8px;background:var(--primary);color:white;border:none;cursor:pointer;font-weight:600;transition:opacity .14s ease;position:relative;z-index:10">Sign In</button>
+        <p style="text-align:center;color:var(--muted);font-size:13px;margin-top:8px">Demo: any username/password works</p>
+      </div>
+    </div>
+
+    <!-- Home Screen (shown after login) -->
+    <div id="home" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <p class="subtitle">Tap a mood — we'll suggest a song & activity and save it to backend.</p>
+        </div>
+        <button id="logoutBtn" style="padding:6px 10px;border-radius:6px;background:#f0f0f0;border:1px solid #ddd;cursor:pointer;font-size:12px;color:#666">Logout</button>
+      </div>
+      
+      <!-- Age group selector -->
+      <div class="card" style="margin-bottom:12px">
+        <label style="display:block;margin-bottom:8px;font-weight:600">Select your age group:</label>
+        <select id="ageGroupSelect" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;font-size:14px">
+          <option value="">-- Choose one --</option>
+          <option value="13-17">13-17</option>
+          <option value="18-25">18-25</option>
+          <option value="26-35">26-35</option>
+          <option value="36-50">36-50</option>
+          <option value="50+">50+</option>
+        </select>
+      </div>
+      
+      <div class="grid" id="moodGrid"></div>
+      <div id="saving" class="card small">Saving mood...</div>
+    </div>
+
+    <div id="rec" style="display:none">
+      <div class="card">
+        <h3 id="recMood">Mood</h3>
+        <p class="small" id="recNote">Here is a recommended song and activity.</p>
+      </div>
+
+      <div class="card">
+        <strong>🎵 Song recommendation</strong>
+        <p id="song">Placeholder playlist</p>
+        <div id="player" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <strong>🏃 Activity suggestion</strong>
+        <p id="activity">Take a 10-minute walk</p>
+      </div>
+
+      <div style="margin-top:12px">
+        <button id="backBtn" style="padding:10px 14px;border-radius:8px;background:var(--primary);color:white;border:none">Back</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>Demo: Web + Android via Capacitor</footer>
+
+  <!-- toast container -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Supabase UMD - must be before your code that uses it -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <script>
+  // --------- CONFIG: paste your real values here ----------
+  const SUPABASE_URL = 'https://ytykkyurraerxbrhwnge.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0eWtreXVycmFlcnhicmh3bmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NzAwODIsImV4cCI6MjA4MDM0NjA4Mn0.0UNe-tSbQngnwMdCIgaFeR58wmAGdjXddILwNRwAcak';
+  // -------------------------------------------------------
+
+  // sanity check: ensure library loaded
+  if (!window.supabase || !window.supabase.createClient) {
+    console.error('Supabase library not available. Check CDN script.');
+  }
+
+  // create client (guard against missing CDN to avoid uncaught TypeError)
+  let supabaseClient = undefined;
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    const { createClient } = window.supabase;
+    try {
+      supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+      console.warn('Failed to create Supabase client:', e);
+      supabaseClient = undefined;
+    }
+  } else {
+    // supabase not present; continue with app using local fallback behaviour
+    supabaseClient = undefined;
+  }
+
+  // Minimal toast fallback so code can call showToast() before the full helper below is defined
+  if (typeof window.showToast !== 'function') {
+    window.showToast = function(message, type = 'info', duration = 3000) {
+      try {
+        const toastEl = document.getElementById('toast');
+        if (!toastEl) { console.log('toast:', message); return; }
+        toastEl.textContent = String(message);
+        toastEl.className = 'toast show ' + (type === 'warn' ? 'warn' : 'info');
+        setTimeout(() => { toastEl.classList.remove('show'); }, duration);
+      } catch (e) {
+        console.log('toast fallback:', message);
+      }
+    };
+  }
+
+  // Immediate fallback: make login visible quickly so page isn't blank
+  try {
+    console.log('Moodify script started');
+    const fallbackLogin = document.getElementById('login');
+    if (fallbackLogin) fallbackLogin.style.display = 'block';
+  } catch (e) {
+    console.warn('Fallback UI show failed', e);
+  }
+
+  // API base resolver: when page is opened via file:// the origin is 'null',
+  // so fall back to a known local server address (adjust port if needed).
+  const API_FALLBACK = 'http://localhost:3002';
+  function getApiBase() {
+    try {
+      const origin = window.location.origin;
+      if (origin && origin !== 'null' && !origin.startsWith('file:')) return origin;
+    } catch (e) {
+      /* ignore */
+    }
+    return API_FALLBACK;
+  }
+
+  // UI refs
+  const MOODS = [
+    {id:'happy', label:'Happy', emoji:'😄', color:'#FFD54F'},
+    {id:'sad', label:'Sad', emoji:'😢', color:'#64B5F6'},
+    {id:'calm', label:'Calm', emoji:'😌', color:'#80CBC4'},
+    {id:'energetic', label:'Energetic', emoji:'🔥', color:'#EF5350'},
+    {id:'stressed', label:'Stressed', emoji:'😫', color:'#B0BEC5'}
+  ];
+
+  const moodGrid = document.getElementById('moodGrid');
+  const savingEl = document.getElementById('saving');
+  const loginScreen = document.getElementById('login');
+  const home = document.getElementById('home');
+  const rec = document.getElementById('rec');
+  const songEl = document.getElementById('song');
+  const activityEl = document.getElementById('activity');
+  const recMood = document.getElementById('recMood');
+  const backBtn = document.getElementById('backBtn');
+  const ageGroupSelect = document.getElementById('ageGroupSelect');
+  const loginUsername = document.getElementById('loginUsername');
+  const loginPassword = document.getElementById('loginPassword');
+  const loginBtn = document.getElementById('loginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  // Track currently logged-in user
+  let currentUser = null;
+
+  // ===== AUTH FUNCTIONS =====
+  function saveUserSession(username) {
+    // Store user session in localStorage
+    const session = {
+      username: username,
+      token: 'session_' + Date.now(),  // simple token
+      loggedInAt: new Date().toISOString()
+    };
+    localStorage.setItem('moodify_session', JSON.stringify(session));
+    currentUser = session;  // Store full session object
+  }
+
+  function getUserSession() {
+    // Retrieve stored user session
+    const raw = localStorage.getItem('moodify_session');
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  function clearUserSession() {
+    // Clear stored session
+    localStorage.removeItem('moodify_session');
+  }
+
+  function showLoginScreen() {
+    loginScreen.style.display = 'block';
+    home.style.display = 'none';
+    rec.style.display = 'none';
+    loginUsername.value = '';
+    loginPassword.value = '';
+    if (loginUsername) loginUsername.focus();
+  }
+
+  function showHomeScreen() {
+    loginScreen.style.display = 'none';
+    home.style.display = 'block';
+    rec.style.display = 'none';
+  }
+
+  async function handleLogin() {
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value.trim();
+
+    if (!username || !password) {
+      showToast('Please enter username and password', 'warn');
+      return;
+    }
+
+    if (username.length < 3) {
+      showToast('Username must be at least 3 characters', 'warn');
+      return;
+    }
+
+    if (password.length < 3) {
+      showToast('Password must be at least 3 characters', 'warn');
+      return;
+    }
+
+    // Demo: any valid username/password works (in production, call your auth backend)
+    console.log('Login attempt:', username);
+    saveUserSession(username);
+    showToast(`Welcome, ${username}!`, 'info', 2000);
+    try {
+      showHomeScreen();
+      // defensive: ensure home is visible; if not, reload so the load-handler shows the saved session
+      setTimeout(() => {
+        try {
+          if (!home || home.style.display !== 'block') {
+            console.warn('Home not visible after login; reloading to restore session view');
+            window.location.reload();
+          }
+        } catch (e) { console.warn('Post-login visibility check failed', e); }
+      }, 250);
+    } catch (e) {
+      console.error('Error while showing home screen after login', e);
+      // fallback: reload to let onload session logic show the correct screen
+      window.location.reload();
+    }
+  }
+
+  function handleLogout() {
+    clearUserSession();
+    currentUser = null;  // Clear current user reference
+    showToast('Logged out', 'info', 1500);
+    showLoginScreen();
+  }
+
+  // Event listeners for login
+  if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+  if (loginUsername) loginUsername.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && loginPassword) loginPassword.focus();
+  });
+  if (loginPassword) loginPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleLogin();
+  });
+
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+
+  // Check if already logged in on page load
+  window.addEventListener('load', () => {
+    const session = getUserSession();
+    if (session) {
+      console.log('Found existing session for:', session.username);
+      currentUser = session;  // Store full session object
+      showHomeScreen();
+    } else {
+      showLoginScreen();
+    }
+    setTimeout(syncLocalToSupabase, 1200);
+  });
+
+  
+
+  // build mood buttons
+  if (moodGrid) {
+    MOODS.forEach(m => {
+    const btn = document.createElement('div');
+    btn.className = 'btn';
+    btn.style.background = m.color;
+    btn.setAttribute('role', 'button');
+    btn.tabIndex = 0;
+    // NOTE: using template literal string correctly
+    btn.innerHTML = `<div class="emoji">${m.emoji}</div><div class="label">${m.label}</div>`;
+
+    btn.addEventListener('click', () => onMoodTap(m));
+    btn.addEventListener('pointerdown', () => btn.classList.add('pressed'));
+    btn.addEventListener('pointerup', () => btn.classList.remove('pressed'));
+    btn.addEventListener('pointercancel', () => btn.classList.remove('pressed'));
+    btn.addEventListener('pointerleave', () => btn.classList.remove('pressed'));
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        btn.classList.add('pressed');
+        setTimeout(() => { btn.classList.remove('pressed'); onMoodTap(m); }, 120);
+      }
+    });
+
+      moodGrid.appendChild(btn);
+    });
+  } else {
+    console.warn('moodGrid element not found; skipping mood buttons');
+  }
+
+  // Static button handler for Energetic
+  function handleMoodClick(moodId) {
+    const mood = MOODS.find(m => m.id.toLowerCase() === moodId.toLowerCase());
+    if (mood) onMoodTap(mood);
+  }
+
+  // Client-side helper that calls the local proxy server at /api/recommendations
+  // Returns an array of Spotify track objects or an empty array on failure.
+  window.getSongsByMoodAndAge = async function(mood, ageGroup) {
+    try {
+      // Use relative path to the proxy server so it works when served from the same origin
+      const base = getApiBase();
+      const res = await fetch(`${base}/api/recommendations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mood: mood, age_group: ageGroup })
+      });
+      if (!res.ok) {
+        console.warn('Spotify proxy returned error', res.status);
+        return [];
+      }
+      const json = await res.json();
+      return json.tracks || [];
+    } catch (err) {
+      console.warn('Error calling Spotify recommendations', err);
+      return [];
+    }
+  };
+
+  // Fallback: legacy search function (for compatibility)
+  window.searchSongsByMood = async function(query) {
+    try {
+      const base = getApiBase();
+      const url = `${base}/api/search?q=${encodeURIComponent(query)}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.warn('Spotify proxy returned error', res.status);
+        return [];
+      }
+      const json = await res.json();
+      return json.tracks || [];
+    } catch (err) {
+      console.warn('Error calling Spotify proxy', err);
+      return [];
+    }
+  };
+
+  async function onMoodTap(mood) {
+    savingEl.style.display = 'block';
+
+    // Get recommendations first, before using them
+    const recommendations = {
+      happy: { song: 'Happy Vibes Playlist', activity: 'Go for a walk' },
+      sad: { song: 'Comfort Playlist', activity: 'Write your thoughts' },
+      calm: { song: 'Lo-fi Playlist', activity: 'Deep breathing' },
+      energetic: { song: 'Workout Beats', activity: '10-minute workout' },
+      stressed: { song: 'Relaxing Music', activity: 'Meditation' }
+    };
+
+    const recObj = recommendations[mood.id] || {song:'Playlist', activity:'Do something'};
+
+    try {
+      const ageGroup = ageGroupSelect.value || 'unknown';
+      if (!ageGroup) {
+        showToast('Please select an age group', 'warn');
+        savingEl.style.display = 'none';
+        return;
+      }
+
+      // Try to enrich recommendation with Spotify search (if available)
+      let spotifyTrack = null;
+      try {
+        // Prefer the recommendations endpoint which uses mood + age_group
+        if (typeof window.getSongsByMoodAndAge === 'function') {
+          const tracks = await window.getSongsByMoodAndAge(mood.id, ageGroup).catch(e => { console.warn('Recommendations failed', e); return []; });
+          if (tracks && tracks.length) spotifyTrack = tracks[0];
+        } else if (typeof window.searchSongsByMood === 'function') {
+          const query = `${mood.label} ${recObj.song}`;
+          const tracks = await window.searchSongsByMood(query).catch(e => { console.warn('Spotify search failed', e); return []; });
+          if (tracks && tracks.length) spotifyTrack = tracks[0];
+        } else {
+          console.log('No Spotify helper available on window — skipping spotify lookup.');
+        }
+      } catch (e) {
+        console.warn('Error while attempting Spotify lookup', e);
+      }
+
+      // Update UI with the (possibly enriched) song recommendation
+      if (spotifyTrack) {
+        songEl.textContent = `${spotifyTrack.name} – ${spotifyTrack.artists?.[0]?.name || ''}`;
+      } else {
+        songEl.textContent = recObj.song;
+      }
+      activityEl.textContent = recObj.activity;
+
+      // show the recommendation screen
+      home.style.display = 'none';
+      rec.style.display = 'block';
+
+      // Player area: play preview_url if available, otherwise show Spotify embed when id present
+      const player = document.getElementById('player');
+      if (player) {
+        player.innerHTML = '';
+        if (spotifyTrack) {
+          if (spotifyTrack.preview_url) {
+            const audioEl = document.createElement('audio');
+            audioEl.controls = true;
+            audioEl.src = spotifyTrack.preview_url;
+            audioEl.autoplay = true;
+            player.appendChild(audioEl);
+          } else if (spotifyTrack.id) {
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://open.spotify.com/embed/track/${spotifyTrack.id}`;
+            iframe.width = '100%';
+            iframe.height = '80';
+            iframe.frameBorder = '0';
+            iframe.allow = 'clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+            player.appendChild(iframe);
+          }
+        } else {
+          // No spotify track found — show a short note with how to enable Spotify integration
+          const hint = document.createElement('div');
+          hint.className = 'small';
+          hint.textContent = 'Connect a Spotify backend (see README) to enable real previews.';
+          player.appendChild(hint);
+        }
+      }
+
+      // Prepare payload to save: include spotify fields when available
+      const insertPayload = {
+        mood: mood.id,
+        note: `Song: ${spotifyTrack ? (spotifyTrack.name + ' – ' + (spotifyTrack.artists?.[0]?.name || '')) : recObj.song} | Activity: ${recObj.activity}`,
+        age_group: ageGroup
+      };
+      if (spotifyTrack && spotifyTrack.id) insertPayload.spotify_id = spotifyTrack.id;
+      if (spotifyTrack && spotifyTrack.preview_url) insertPayload.spotify_preview = spotifyTrack.preview_url;
+      if (currentUser && currentUser.username) insertPayload.user_id = currentUser.username;
+
+      // Use the server endpoint to save (more reliable than client-side Supabase with RLS)
+      const apiBase = (typeof getApiBase === 'function') ? getApiBase() : (window.location.origin !== 'null' ? window.location.origin : 'http://localhost:3002');
+      try {
+        const serverRes = await fetch(`${apiBase}/api/log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(insertPayload)
+        });
+        if (serverRes.ok) {
+          const json = await serverRes.json();
+          console.log('Inserted row to server:', json);
+          showToast('Saved to server', 'info', 1800);
+        } else {
+          const errTxt = await serverRes.text();
+          console.error('Server insert failed:', serverRes.status, errTxt);
+          showToast('Failed to save to server', 'warn', 3500);
+        }
+      } catch (err) {
+        console.error('Error calling server insert:', err);
+        showToast('Error saving to server', 'warn', 3500);
+      }
+
+    } catch (err) {
+      console.error('Unexpected error in onMoodTap:', err);
+    } finally {
+      savingEl.style.display = 'none';
+    }
+  }
+
+  function goBack() {
+    rec.style.display = 'none';
+    home.style.display = 'block';
+  }
+
+  backBtn.addEventListener('click', goBack);
+
+  // register service worker for PWA (optional)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(e => console.log('sw err', e));
+    });
+  }
+
+  // Attempt to sync any locally-saved mood logs to Supabase.
+  async function syncLocalToSupabase() {
+    try {
+      const key = 'mood_logs_local';
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const entries = JSON.parse(raw || '[]');
+      if (!entries || entries.length === 0) return;
+      if (typeof supabaseClient === 'undefined' || !supabaseClient || typeof supabaseClient.from !== 'function') {
+        console.warn('Supabase client not present; cannot sync local entries now.');
+        return;
+      }
+
+      // Prepare payload: include full saved fields so server gets the
+      // age group, note, and user_id that were saved locally when offline/failed.
+      const payload = entries.map(e => {
+        const entry = {
+          mood: e.mood,
+          age_group: e.age_group,
+          note: e.note
+        };
+        if (e.user_id) {
+          entry.user_id = e.user_id;
+        }
+        return entry;
+      });
+
+      const { data, error } = await supabaseClient.from('mood_logs').insert(payload).select();
+      if (error) {
+        console.warn('Sync to Supabase failed', error);
+        const msg = (error && error.message) ? `Sync failed: ${error.message}` : 'Sync failed (will retry)';
+        showToast(msg, 'warn', 4500);
+        return;
+      }
+
+      // success: clear local cache and notify user
+      localStorage.removeItem(key);
+      console.log('Synced local entries to Supabase:', data);
+      showToast(`Synced ${data.length} entries`, 'info', 2500);
+    } catch (err) {
+      console.error('Error during syncLocalToSupabase', err);
+    }
+  }
+
+  // Run sync on load and when the browser regains network connectivity
+  // (load event already handled in auth check above)
+  window.addEventListener('online', () => { syncLocalToSupabase(); });
+
+  // toast helper
+  (function(){
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+    window.showToast = function(message, type = 'info', duration = 3000) {
+      if (!toastEl) return;
+      toastEl.textContent = String(message);
+      toastEl.className = 'toast show ' + (type === 'warn' ? 'warn' : 'info');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove('show');
+        toastTimer = null;
+      }, duration);
+    };
+  })();
+  </script>
+</body>
+</html>

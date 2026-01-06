@@ -1,0 +1,12 @@
+{
+  "name": "Moodify",
+  "short_name": "Moodify",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f4f6ff",
+  "theme_color": "#3f51b5",
+  "icons": [
+    { "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%233f51b5'/><text y='72' font-size='72' text-anchor='middle' x='50'>🎵</text></svg>", "sizes": "192x192", "type": "image/svg+xml" },
+    { "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%233f51b5'/><text y='72' font-size='72' text-anchor='middle' x='50'>🎵</text></svg>", "sizes": "512x512", "type": "image/svg+xml" }
+  ]
+}
